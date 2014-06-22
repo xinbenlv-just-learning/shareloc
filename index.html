@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title></title>
-	<link rel="stylesheet" href="">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+        html { height: 100% }
+        body { height: 100%; margin: 0; padding: 0 }
+        #map-canvas { height: 100% }
+    </style>
+
 </head>
 <body>
-	<script>
-		var showPosition = function(position) {
-			console.log(position);
-			alert("yes!" + position);
-		};
-		var showError = function(error) {
-			console.log(error);
-			alert("failed" + error);
-		}
-
-		navigator.geolocation.getCurrentPosition(showPosition, showError);
+<div id="map-canvas"/>
+<!-- TODO(zzn) credentials in codebase, but I don't care :P --!>
+<script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBzEkIFR8Mb17CYuEJaLQfDN0BTmP2ufiU">
+</script>
+<script type="text/javascript">
 
 </script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+<script src="//www.parsecdn.com/js/parse-1.2.18.min.js"></script>
+<script src="public/js/main.js"></script>
 </body>
 </html>
