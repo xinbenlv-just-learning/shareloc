@@ -12,7 +12,9 @@
     var CONSTS = {
         deviceId: "deviceId",
         Location: "Location",
-        position: "position"
+        position: "position",
+        channel: "channel",
+        iconUrl: "iconUrl"
     }
 
     var REFRESH_INTERVAL = 10000; // in ms
@@ -23,13 +25,14 @@
     };
 
     var handleNoGeolocation = function (error) {
-        LOG("failed" + error);
+        LOG("failed" + JSON.stringify(error));
     };
 
-    var uploadMyLocation = function (myDeviceId, position) {
+    var uploadMyLocation = function (myDeviceId, position, channel, myIconUrl) {
         var Location = Parse.Object.extend(CONSTS.Location);
         var query = new Parse.Query(Location);
         query.equalTo(CONSTS.deviceId, myDeviceId);
+        query.equalTo(CONSTS.channel, channel);
         query.limit(1);
         query
             .find()
@@ -42,6 +45,10 @@
             }
             location.set(CONSTS.deviceId, myDeviceId);
             location.set(CONSTS.position, position);
+            location.set(CONSTS.channel, channel);
+            if(myIconUrl) {
+                location.set(CONSTS.iconUrl, myIconUrl);
+            }
             location.save().then(
                 function(savedLocation) {
                     // Execute any logic that should take place after the object is saved.
@@ -56,10 +63,11 @@
 
     };
 
-    var refreshMarkers = function(map, myDeviceId) {
+    var refreshMarkers = function(map, myDeviceId, channel) {
         var Location = Parse.Object.extend("Location");
         var query = new Parse.Query(Location);
         query.notEqualTo(CONSTS.deviceId, myDeviceId);
+        query.equalTo(CONSTS.channel, channel);
         query.limit(10);
         query.find({
             success: function(locations) {
@@ -68,11 +76,12 @@
                     var location = locations[i];
                     var position = location.get("position");
                     var deviceId = location.get("deviceId");
+                    var iconUrl = location.get(CONSTS.iconUrl);
                     LOG("position received " + i + " " + JSON.stringify(position));
                     var marker = new google.maps.Marker({
                         title: deviceId,
                         icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
+                            path: iconUrl ? iconUrl : google.maps.SymbolPath.CIRCLE,
                             scale: 10
                         }
                     });
@@ -105,11 +114,49 @@
         return deviceId;
     };
 
+    var showChannelBanner = function(channel) {
+        if (!channel) {
+            $("#channel-label").hide();
+        } else {
+            $("#channel-label span").html("<span>" + channel + "</span>");
+        }
+    };
 
+    var getChannel = function() {
+        var currentUrl = window.location.hash;
+        var channel = currentUrl.split("!")[1];
+        if (!channel) {
+            channel = "global";
+        }
+        return channel;
+    };
+
+    var initFacebook = function(){
+        window.fbAsyncInit = function() {
+            Parse.FacebookUtils.init({
+                appId      : '1517187011834297',
+                status     : true,
+                xfbml      : true
+            });
+        };
+
+        (function(d, s, id){
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) {return;}
+            js = d.createElement(s); js.id = id;
+            js.src = "//connect.facebook.net/en_US/all.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+    };
 
     var main = function () {
         initializeParse();
+        initFacebook();
+        // get channel
 
+        var myMarker; // larger scope
+        var myIconUrl;
         google.maps.event.addDomListener(window, 'load', function () {
             var mapOptions = {
                 center: new google.maps.LatLng(37.3881838, -122.0027331), // TODO(zzn): change it later
@@ -117,12 +164,14 @@
             };
             var map = new google.maps.Map(document.getElementById("map-canvas"),
                 mapOptions);
-            var myMarker = new google.maps.Marker({
+            myMarker = new google.maps.Marker({
                 map: map,
                 title: "My Location"
             });
 
             var deviceId = getDeviceId();
+            var channel = getChannel();
+            showChannelBanner(channel);
             var execInsetInterval = function () {
                 LOG("updating!");
 
@@ -133,16 +182,40 @@
                             position.coords.latitude,
                             position.coords.longitude)
                     );
-                    uploadMyLocation(deviceId, position);
-                    refreshMarkers(map, deviceId);
+                    uploadMyLocation(deviceId, position, channel, myIconUrl);
+                    refreshMarkers(map, deviceId, channel);
                 }, handleNoGeolocation);
             };
             execInsetInterval();
             setInterval(execInsetInterval, REFRESH_INTERVAL);
         });
 
-    };
+        $("#sign-in").click(function () {
+            Parse.FacebookUtils.logIn("email", {
+                success: function (user) {
+                    if (!user.existed()) {
+                        LOG("User signed up and logged in through Facebook!");
+                    } else {
+                        LOG("User logged in through Facebook!");
+                        FB.api('/me', {fields: 'name,picture'}, function(response) {
+                            console.log(response);
+                            if (myMarker) {
+                                myIconUrl = response.picture.data.url;
+                                myMarker.setIcon(response.picture.data.url);
 
-    main(); // Run
+                            }
+                        });
+                    }
+                },
+                error: function (user, error) {
+                    alert("User cancelled the Facebook login or did not fully authorize.");
+                }
+            });
+        });
+    }
+
+    $(document).ready(function() {
+        main(); // Run
+    });
 
 })();
